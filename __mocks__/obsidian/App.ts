@@ -1,4 +1,4 @@
-import type { App, FileManager, Keymap, MetadataCache, Scope, UserEvent, Vault, Workspace } from "obsidian";
+import type { App, FileManager, Keymap, MetadataCache, RenderContext, Scope, SecretStorage, UserEvent, Vault, Workspace } from "obsidian";
 
 export class AppMock implements App {
 	get keymap(): Keymap {
@@ -22,4 +22,19 @@ export class AppMock implements App {
 	get lastEvent(): UserEvent | null {
 		throw new Error("Not implemented.");
 	}
+	get renderContext(): RenderContext {
+		throw new Error("Not implemented.");
+	}
+	secretStorage: SecretStorage = {
+		setSecret: () => {},
+		getSecret: () => null,
+		listSecrets: () => [],
+	} as unknown as SecretStorage;
+	isDarkMode(): boolean {
+		return false;
+	}
+	loadLocalStorage(key: string): string | null {
+		return null;
+	}
+	saveLocalStorage(key: string, value: string | undefined): void {}
 }

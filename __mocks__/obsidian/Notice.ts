@@ -4,6 +4,8 @@ import type { Notice } from "obsidian";
 export class NoticeMock implements Notice {
 	constructor(message: string | DocumentFragment, duration?: number | undefined) {}
 	noticeEl!: HTMLElement;
+	containerEl!: HTMLElement;
+	messageEl!: HTMLElement;
 	setMessage(message: string | DocumentFragment): this {
 		throw new Error("Method not implemented.");
 	}
