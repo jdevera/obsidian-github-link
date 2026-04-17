@@ -3,6 +3,7 @@ import { Setting } from "obsidian";
 import type { Verification } from "@octokit/auth-oauth-device/dist-types/types";
 import { AuthModal } from "../auth-modal";
 import { auth } from "../github/auth";
+import { setToken } from "../keychain";
 import type { GithubAccount } from "./types";
 
 export class AccountSettings {
@@ -113,6 +114,7 @@ export class AccountSettings {
 					this.authModal?.close();
 					this.authModal = null;
 					this.newAccount!.token = authResult.token;
+					setToken(this.newAccount!, authResult.token);
 					this.displayCallback();
 				});
 			})
@@ -121,6 +123,7 @@ export class AccountSettings {
 				text.setValue(this.newAccount!.token);
 				text.onChange((value) => {
 					this.newAccount!.token = value.trim();
+					setToken(this.newAccount!, value.trim());
 				});
 			});
 
@@ -219,6 +222,7 @@ export class AccountSettings {
 					this.authModal?.close();
 					this.authModal = null;
 					account.token = authResult.token;
+					setToken(account, authResult.token);
 					await this.saveCallback();
 					this.displayCallback();
 				});
@@ -228,6 +232,7 @@ export class AccountSettings {
 				text.setValue(account.token);
 				text.onChange((value) => {
 					account.token = value.trim();
+					setToken(account, value.trim());
 					void this.saveCallback();
 				});
 			});

@@ -1,5 +1,5 @@
 import { expect, jest, test, describe, beforeEach } from "@jest/globals";
-import type { Plugin, RequestUrlResponse } from "obsidian";
+import type { RequestUrlResponse } from "obsidian";
 import { App } from "obsidian";
 import type { PluginMock } from "../__mocks__/obsidian/Plugin";
 import * as manifest from "../manifest.json";
@@ -13,7 +13,7 @@ import { DATA_VERSION } from "./settings/types";
 jest.mock("./settings/settings-tab");
 
 function mockedPlugin(plugin: GithubLinkPlugin): PluginMock {
-	return plugin as Plugin as PluginMock;
+	return plugin as unknown as PluginMock;
 }
 
 describe("GithubLinkPlugin", () => {

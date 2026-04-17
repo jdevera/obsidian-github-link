@@ -10,11 +10,13 @@ import { createInlineViewPlugin } from "./inline/view-plugin";
 import { RequestCache } from "./github/cache";
 import { QueryProcessor } from "./query/processor";
 import { DATA_VERSION } from "./settings/types";
+import { initKeychain, loadTokens, migrateTokens } from "./keychain";
 
 export const PluginSettings: GithubLinkPluginSettings = { ...DEFAULT_SETTINGS };
 export const PluginData: GithubLinkPluginData = { cache: null, settings: PluginSettings, dataVersion: DATA_VERSION };
 export const logger = new Logger();
 let cache: RequestCache;
+
 export function getCache(): RequestCache {
 	return cache;
 }
@@ -29,25 +31,30 @@ export class GithubLinkPlugin extends Plugin {
 		logger.logLevel = PluginSettings.logLevel;
 
 		cache = new RequestCache(PluginData.cache);
+		initKeychain(this.app.secretStorage);
 
 		if (data.dataVersion === undefined || PluginData.dataVersion < DATA_VERSION) {
-			// Always clear cache when data version changes
 			const entriesDeleted = cache.clean(new Date());
 			PluginData.cache = null;
 			PluginData.dataVersion = DATA_VERSION;
-			await this.saveData(PluginData);
+
+			migrateTokens(PluginSettings.accounts);
+
+			await this.saveData(this.getDataForSave());
 			new Notice(
 				`GitHub link data schema migrated to version ${DATA_VERSION}. Removed ${entriesDeleted} stored items from GitHub Link cache.`,
 				3000,
 			);
 		}
 
+		loadTokens(PluginSettings.accounts);
+
 		// Clean cache
 		const maxAge = new Date(new Date().getTime() - PluginSettings.maxCacheAgeHours * 60 * 60 * 1000);
 		const entriesDeleted = cache.clean(maxAge);
 		if (entriesDeleted > 0) {
 			PluginData.cache = cache.toJSON();
-			await this.saveData(PluginData);
+			await this.saveData(this.getDataForSave());
 			logger.info(`Cleaned ${entriesDeleted} entries from request cache.`);
 		}
 
@@ -61,6 +68,20 @@ export class GithubLinkPlugin extends Plugin {
 	}
 
 	/**
+	 * Returns plugin data with tokens stripped from accounts, for safe persistence to data.json.
+	 */
+	public getDataForSave(): GithubLinkPluginData {
+		return {
+			cache: PluginData.cache,
+			settings: {
+				...PluginSettings,
+				accounts: PluginSettings.accounts.map((acc) => ({ ...acc, token: "" })),
+			},
+			dataVersion: DATA_VERSION,
+		};
+	}
+
+	/**
 	 * Save cache at regular interval
 	 */
 	public setCacheInterval(): void {
@@ -68,7 +89,7 @@ export class GithubLinkPlugin extends Plugin {
 			logger.debug("Checking if cache needs a save.");
 			if (cache.cacheUpdated) {
 				PluginData.cache = cache.toJSON();
-				await this.saveData(PluginData);
+				await this.saveData(this.getDataForSave());
 				cache.cacheUpdated = false;
 				logger.info(`Saved request cache with ${PluginData.cache?.length} items.`);
 			}
