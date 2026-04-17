@@ -36,5 +36,7 @@ export class AppMock implements App {
 	loadLocalStorage(key: string): string | null {
 		return null;
 	}
-	saveLocalStorage(key: string, value: string | undefined): void {}
+	saveLocalStorage(_key: string, _value: string | undefined): void {
+		throw new Error("Not implemented.");
+	}
 }
