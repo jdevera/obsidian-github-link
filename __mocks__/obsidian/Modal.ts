@@ -30,4 +30,13 @@ export class ModalMock implements Modal {
 	onClose(): void {
 		throw new Error("Method not implemented.");
 	}
+	setTitle(title: string): this {
+		return this;
+	}
+	setContent(content: string | DocumentFragment): this {
+		return this;
+	}
+	setCloseCallback(cb: () => void): this {
+		return this;
+	}
 }

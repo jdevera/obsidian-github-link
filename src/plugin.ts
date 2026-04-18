@@ -10,11 +10,13 @@ import { createInlineViewPlugin } from "./inline/view-plugin";
 import { RequestCache } from "./github/cache";
 import { QueryProcessor } from "./query/processor";
 import { DATA_VERSION } from "./settings/types";
+import { initKeychain, loadTokens, migrateTokens } from "./keychain";
 
 export const PluginSettings: GithubLinkPluginSettings = { ...DEFAULT_SETTINGS };
 export const PluginData: GithubLinkPluginData = { settings: PluginSettings, dataVersion: DATA_VERSION };
 export const logger = new Logger();
 let cache: RequestCache;
+
 export function getCache(): RequestCache {
 	return cache;
 }
@@ -29,6 +31,7 @@ export class GithubLinkPlugin extends Plugin {
 
 		cache = new RequestCache();
 		await cache.init();
+		initKeychain(this.app.secretStorage);
 
 		// Migrate cache from data.json to IndexedDB (one-time)
 		let needsSave = false;
@@ -46,19 +49,24 @@ export class GithubLinkPlugin extends Plugin {
 		}
 
 		if (needsSave) {
-			await this.saveData({ settings: PluginSettings, dataVersion: PluginData.dataVersion });
+			await this.saveData(this.getDataForSave());
 		}
 
 		if (data.dataVersion === undefined || PluginData.dataVersion < DATA_VERSION) {
 			// Always clear cache when data version changes
 			const entriesDeleted = await cache.clean(new Date());
 			PluginData.dataVersion = DATA_VERSION;
-			await this.saveData({ settings: PluginSettings, dataVersion: DATA_VERSION });
+
+			migrateTokens(PluginSettings.accounts);
+
+			await this.saveData(this.getDataForSave());
 			new Notice(
 				`GitHub link data schema migrated to version ${DATA_VERSION}. Removed ${entriesDeleted} stored items from GitHub Link cache.`,
 				3000,
 			);
 		}
+
+		loadTokens(PluginSettings.accounts);
 
 		// Clean cache on startup
 		const maxAge = new Date(new Date().getTime() - PluginSettings.maxCacheAgeHours * 60 * 60 * 1000);
@@ -73,5 +81,18 @@ export class GithubLinkPlugin extends Plugin {
 		this.registerMarkdownPostProcessor(InlineRenderer);
 		this.registerEditorExtension(createInlineViewPlugin(this));
 		this.registerMarkdownCodeBlockProcessor("github-query", QueryProcessor);
+	}
+
+	/**
+	 * Returns plugin data with tokens stripped from accounts, for safe persistence to data.json.
+	 */
+	public getDataForSave(): GithubLinkPluginData {
+		return {
+			settings: {
+				...PluginSettings,
+				accounts: PluginSettings.accounts.map((acc) => ({ ...acc, token: "" })),
+			},
+			dataVersion: DATA_VERSION,
+		};
 	}
 }
