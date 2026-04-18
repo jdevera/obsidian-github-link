@@ -13,7 +13,8 @@ export interface GithubAccount {
 
 export interface GithubLinkPluginData {
 	settings: GithubLinkPluginSettings;
-	cache: string[] | null;
+	/** @deprecated Cache is now stored in IndexedDB. Only used during migration. */
+	cache?: string[] | null;
 	dataVersion: number;
 }
 
@@ -29,7 +30,6 @@ export interface GithubLinkPluginSettings {
 	tagShowPRMergeable: boolean;
 	tagShowFileBranchName: boolean;
 	tagShowFileLineNumber: boolean;
-	cacheIntervalSeconds: number;
 	maxCacheAgeHours: number;
 	minRequestSeconds: number;
 }
@@ -45,7 +45,6 @@ export const DEFAULT_SETTINGS: GithubLinkPluginSettings = {
 	tagShowPRMergeable: false,
 	tagShowFileBranchName: true,
 	tagShowFileLineNumber: true,
-	cacheIntervalSeconds: 60,
 	maxCacheAgeHours: 120,
 	minRequestSeconds: 60,
 };
