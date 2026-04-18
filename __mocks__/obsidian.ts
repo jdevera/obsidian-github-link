@@ -5,11 +5,22 @@ import { PluginSettingTabMock } from "./obsidian/PluginSettingTab";
 import { NoticeMock } from "./obsidian/Notice";
 import { setIconMock } from "./obsidian/setIcon";
 
+class SecretComponentMock {
+	constructor(_app: unknown, _el: unknown) {}
+	setValue(_value: string) {
+		return this;
+	}
+	onChange(_cb: (value: string) => unknown) {
+		return this;
+	}
+}
+
 module.exports = {
 	App: AppMock,
 	Plugin: PluginMock,
 	Modal: ModalMock,
 	PluginSettingTab: PluginSettingTabMock,
 	Notice: NoticeMock,
+	SecretComponent: SecretComponentMock,
 	setIcon: setIconMock,
 };

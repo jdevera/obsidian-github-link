@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { Setting } from "obsidian";
+import { SecretComponent, Setting } from "obsidian";
 import type { Verification } from "@octokit/auth-oauth-device/dist-types/types";
 import { AuthModal } from "../auth-modal";
 import { auth } from "../github/auth";
@@ -29,7 +29,7 @@ export class AccountSettings {
 		saveNewAccountCallback: (account: GithubAccount) => Promise<void>,
 	): void {
 		if (!this.newAccount) {
-			this.newAccount = { id: crypto.randomUUID(), name: "", orgs: [], token: "", customOAuth: false };
+			this.newAccount = { id: crypto.randomUUID(), name: "", orgs: [], token: "", tokenSecret: "", customOAuth: false };
 		}
 		// TODO: Combine the new account and existing account rendering to reduce duplication
 		const accountContainer = container.createDiv();
@@ -99,7 +99,7 @@ export class AccountSettings {
 		new Setting(accountContainer)
 			.setName("Token")
 			.setDesc(
-				"A GitHub token, which can be generated automatically (recommended) or by creating a personal access token (not recommended unless org does not allow OAuth tokens). Required.",
+				"A GitHub token stored in Obsidian's keychain. Generate one automatically (recommended) or link an existing secret.",
 			)
 			.addButton((button) => {
 				button.setButtonText("Generate Token");
@@ -118,14 +118,15 @@ export class AccountSettings {
 					this.displayCallback();
 				});
 			})
-			.addText((text) => {
-				text.setPlaceholder("Personal Access Token / OAuth Token");
-				text.setValue(this.newAccount!.token);
-				text.onChange((value) => {
-					this.newAccount!.token = value.trim();
-					setToken(this.newAccount!, value.trim());
-				});
-			});
+			.addComponent((el) =>
+				new SecretComponent(this.app, el)
+					.setValue(this.newAccount!.tokenSecret)
+					.onChange((secretName) => {
+						this.newAccount!.tokenSecret = secretName;
+						const token = this.app.secretStorage.getSecret(secretName);
+						this.newAccount!.token = token ?? "";
+					}),
+			);
 
 		new Setting(accountContainer).addButton((button) => {
 			button.setButtonText("Save account");
@@ -207,7 +208,7 @@ export class AccountSettings {
 		new Setting(accountContainer)
 			.setName("Token")
 			.setDesc(
-				"A GitHub token, which can be generated automatically (recommended) or by creating a personal access token (not recommended unless org does not allow OAuth tokens).",
+				"A GitHub token stored in Obsidian's keychain. Generate one automatically (recommended) or link an existing secret.",
 			)
 			.addButton((button) => {
 				button.setButtonText("Generate Token");
@@ -227,15 +228,16 @@ export class AccountSettings {
 					this.displayCallback();
 				});
 			})
-			.addText((text) => {
-				text.setPlaceholder("Personal Access Token / OAuth Token");
-				text.setValue(account.token);
-				text.onChange((value) => {
-					account.token = value.trim();
-					setToken(account, value.trim());
-					void this.saveCallback();
-				});
-			});
+			.addComponent((el) =>
+				new SecretComponent(this.app, el)
+					.setValue(account.tokenSecret)
+					.onChange(async (secretName) => {
+						account.tokenSecret = secretName;
+						const token = this.app.secretStorage.getSecret(secretName);
+						account.token = token ?? "";
+						await this.saveCallback();
+					}),
+			);
 	}
 
 	private tokenVerification(verification: Verification) {
