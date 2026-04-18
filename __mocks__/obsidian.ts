@@ -6,7 +6,6 @@ import { NoticeMock } from "./obsidian/Notice";
 import { setIconMock } from "./obsidian/setIcon";
 
 class SecretComponentMock {
-	constructor(_app: unknown, _el: unknown) {}
 	setValue(_value: string) {
 		return this;
 	}
