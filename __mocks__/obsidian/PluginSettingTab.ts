@@ -1,6 +1,7 @@
 import type { App, PluginSettingTab, Plugin } from "obsidian";
 
 export class PluginSettingTabMock implements PluginSettingTab {
+	icon: string = "";
 	constructor(
 		public app: App,
 		public plugin: Plugin,

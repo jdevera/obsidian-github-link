@@ -58,7 +58,16 @@ export class PluginMock implements Plugin {
 	registerCodeMirror(callback: (cm: Editor) => any): void {
 		throw new Error("Method not implemented.");
 	}
-
+	removeCommand(id: string): void {
+		throw new Error("Method not implemented.");
+	}
+	registerBasesView(id: string, factory: any): boolean {
+		throw new Error("Method not implemented.");
+	}
+	registerCliHandler(command: string, handler: any): void {
+		throw new Error("Method not implemented.");
+	}
+	onUserEnable(): void {}
 	registerObsidianProtocolHandler(action: string, handler: ObsidianProtocolHandler): void {
 		throw new Error("Method not implemented.");
 	}

@@ -1,12 +1,15 @@
 import { LogLevel } from "../logger";
 
-export const DATA_VERSION = 1;
+export const DATA_VERSION = 2;
 
 export interface GithubAccount {
 	id: string;
 	name: string;
 	orgs: string[];
+	/** Runtime-only: populated from secretStorage on load. Not persisted. */
 	token: string;
+	/** Name of the secret in Obsidian's SecretStorage. Persisted in data.json. */
+	tokenSecret: string;
 	customOAuth?: boolean;
 	clientId?: string;
 }
