@@ -4,9 +4,10 @@ import { Notice, PluginSettingTab, Setting } from "obsidian";
 import type { App } from "obsidian";
 import type { GithubLinkPlugin } from "../plugin";
 import { LogLevel } from "../logger";
-import { PluginData, PluginSettings, getCache } from "../plugin";
-import type { GithubAccount, GithubLinkPluginData } from "./types";
-import { DATA_VERSION, DEFAULT_SETTINGS } from "./types";
+import { PluginSettings, getCache } from "../plugin";
+import { clearToken } from "../keychain";
+import type { GithubAccount } from "./types";
+import { DEFAULT_SETTINGS } from "./types";
 import { AccountSettings } from "./account";
 
 export class GithubLinkPluginSettingsTab extends PluginSettingTab {
@@ -30,7 +31,7 @@ export class GithubLinkPluginSettingsTab extends PluginSettingTab {
 		containerEl.createEl("h2", { text: "GitHub authentication" });
 
 		containerEl.createEl("p", {
-			text: "No authentication is required to reference public repositories. Providing a token allows referencing private repos, but the token is stored in plain text. You can create multiple accounts for multiple tokens.",
+			text: "No authentication is required to reference public repositories. Providing a token allows referencing private repos. Tokens are stored securely in the Obsidian Keychain. You can create multiple accounts for multiple tokens.",
 		});
 
 		const newAccountSection = containerEl.createDiv();
@@ -291,15 +292,12 @@ export class GithubLinkPluginSettingsTab extends PluginSettingTab {
 	}
 
 	private saveSettings() {
-		const newData: GithubLinkPluginData = {
-			settings: PluginSettings,
-			dataVersion: DATA_VERSION,
-		};
-		return this.plugin.saveData(newData);
+		return this.plugin.saveData(this.plugin.getDataForSave());
 	}
 
 	private async removeAccount(account: GithubAccount): Promise<void> {
 		PluginSettings.accounts.remove(account);
+		clearToken(account);
 		await this.saveSettings();
 	}
 

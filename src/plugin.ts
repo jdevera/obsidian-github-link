@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Notice, Plugin } from "obsidian";
+import { Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, GithubLinkPluginSettingsTab } from "./settings";
 import { Logger } from "./logger";
 
@@ -10,11 +10,13 @@ import { createInlineViewPlugin } from "./inline/view-plugin";
 import { RequestCache } from "./github/cache";
 import { QueryProcessor } from "./query/processor";
 import { DATA_VERSION } from "./settings/types";
+import { initKeychain, loadTokens, migrateTokens } from "./keychain";
 
 export const PluginSettings: GithubLinkPluginSettings = { ...DEFAULT_SETTINGS };
 export const PluginData: GithubLinkPluginData = { settings: PluginSettings, dataVersion: DATA_VERSION };
 export const logger = new Logger();
 let cache: RequestCache;
+
 export function getCache(): RequestCache {
 	return cache;
 }
@@ -30,35 +32,14 @@ export class GithubLinkPlugin extends Plugin {
 		cache = new RequestCache();
 		await cache.init();
 
-		// Migrate cache from data.json to IndexedDB (one-time)
-		let needsSave = false;
-		if (data.cache && Array.isArray(data.cache) && data.cache.length > 0) {
-			const imported = await cache.importFromJSON(data.cache as string[]);
-			logger.info(`Migrated ${imported} cache entries from data.json to IndexedDB.`);
-			needsSave = true;
-		}
+		initKeychain(this.app.secretStorage);
 
-		// Clean up legacy keys from data.json
-		if (data.cache !== undefined || (data.settings as unknown as Record<string, unknown>)?.cacheIntervalSeconds !== undefined) {
-			delete (PluginSettings as unknown as Record<string, unknown>).cacheIntervalSeconds;
-			PluginData.cache = undefined;
-			needsSave = true;
-		}
-
+		const needsSave = [this.keychainMigration(), await this.cacheMigration(data)].some((bool) => bool);
 		if (needsSave) {
-			await this.saveData({ settings: PluginSettings, dataVersion: PluginData.dataVersion });
+			await this.saveData(this.getDataForSave());
 		}
 
-		if (data.dataVersion === undefined || PluginData.dataVersion < DATA_VERSION) {
-			// Always clear cache when data version changes
-			const entriesDeleted = await cache.clean(new Date());
-			PluginData.dataVersion = DATA_VERSION;
-			await this.saveData({ settings: PluginSettings, dataVersion: DATA_VERSION });
-			new Notice(
-				`GitHub link data schema migrated to version ${DATA_VERSION}. Removed ${entriesDeleted} stored items from GitHub Link cache.`,
-				3000,
-			);
-		}
+		loadTokens(PluginSettings.accounts);
 
 		// Clean cache on startup
 		const maxAge = new Date(new Date().getTime() - PluginSettings.maxCacheAgeHours * 60 * 60 * 1000);
@@ -73,5 +54,52 @@ export class GithubLinkPlugin extends Plugin {
 		this.registerMarkdownPostProcessor(InlineRenderer);
 		this.registerEditorExtension(createInlineViewPlugin(this));
 		this.registerMarkdownCodeBlockProcessor("github-query", QueryProcessor);
+	}
+
+	/**
+	 * Returns plugin data with tokens stripped from accounts, for safe persistence to data.json.
+	 */
+	public getDataForSave(): GithubLinkPluginData {
+		return {
+			settings: {
+				...PluginSettings,
+				accounts: PluginSettings.accounts.map((acc) => ({ ...acc, token: "" })),
+			},
+			dataVersion: DATA_VERSION,
+		};
+	}
+
+	/**
+	 * Migrate from legacy plain-text secrets to obsidian keychain
+	 */
+	private keychainMigration(): boolean {
+		if (PluginSettings.accounts.some((acc) => acc.token && !acc.tokenSecret)) {
+			migrateTokens(PluginSettings.accounts);
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Migrate from legacy data.json cache to IndexedDB cache
+	 */
+	private async cacheMigration(
+		data: GithubLinkPluginData & { settings: { cacheIntervalSeconds?: number } },
+	): Promise<boolean> {
+		let needsSave = false;
+
+		if (data.settings.cacheIntervalSeconds) {
+			delete data.settings.cacheIntervalSeconds;
+			needsSave = true;
+		}
+
+		// Migrate cache from data.json to IndexedDB (one-time)
+		if (data.cache && Array.isArray(data.cache) && data.cache.length > 0) {
+			const imported = await cache.importFromJSON(data.cache);
+			logger.info(`Migrated ${imported} cache entries from data.json to IndexedDB.`);
+			needsSave = true;
+		}
+
+		return needsSave;
 	}
 }
